@@ -3,11 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/antchfx/jsonquery"
 )
 
 type backend interface {
@@ -204,6 +207,25 @@ type nftBackend struct {
 	set6Name   string
 }
 
+type nftRuleSet struct {
+	document *jsonquery.Node
+}
+
+func (nrs *nftRuleSet) decode(reader io.Reader) error {
+	var err error
+	nrs.document, err = jsonquery.Parse(reader)
+	return err
+}
+
+func (nrs *nftRuleSet) ipsInSet(tableName, setName string) []string {
+	ips := make([]string, 0)
+	p := fmt.Sprintf("nftables/*/set[./table = '%s' and ./name = '%s']/elem/*/elem//val", tableName, setName)
+	for _, ip := range jsonquery.Find(nrs.document, p) {
+		ips = append(ips, ip.InnerText())
+	}
+	return ips
+}
+
 func (b *nftBackend) createTables() error {
 	if s, _, err := execute("nft", "add", "table", "ip", b.table4Name); err != nil {
 		return fmt.Errorf(`failed to add table "%s": %s`, b.table4Name, s)
@@ -300,23 +322,35 @@ func (b *nftBackend) Initialize() error {
 }
 
 func (b *nftBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
-	ds := int64(d.Seconds())
+	s, _, err := execute("nft", "--json", "list", "sets")
+	if err != nil {
+		return fmt.Errorf("failed to list sets: %w", err)
+	}
+	nrs := &nftRuleSet{}
+	if err := nrs.decode(strings.NewReader(s)); err != nil {
+		return fmt.Errorf("failed to decode ruleset: %w", err)
+	}
 
+	ds := int64(d.Seconds())
 	if ipv6 {
-		if output, ecode, err := execute("nft", "add", "element", "ip6", b.table6Name, b.set6Name, fmt.Sprintf("{ %s timeout %ds }", ip, ds)); err != nil {
-			if ecode == 1 && strings.Contains(output, "File exists") {
-				// This ip is probably already in set. Ignore the error.
+		for _, ipInSet := range nrs.ipsInSet(b.table6Name, b.set6Name) {
+			if ip == ipInSet {
+				// IP is already in set.
 				return nil
 			}
-			return fmt.Errorf(`failed to add element to set "%s": %w`, b.set6Name, err)
+		}
+		if s, _, err := execute("nft", "add", "element", "ip6", b.table6Name, b.set6Name, fmt.Sprintf("{ %s timeout %ds }", ip, ds)); err != nil {
+			return fmt.Errorf(`failed to add element to set "%s": %s`, b.set6Name, s)
 		}
 	} else {
-		if output, ecode, err := execute("nft", "add", "element", "ip", b.table4Name, b.set4Name, fmt.Sprintf("{ %s timeout %ds }", ip, ds)); err != nil {
-			if ecode == 1 && strings.Contains(output, "File exists") {
-				// This ip is probably already in set. Ignore the error.
+		for _, ipInSet := range nrs.ipsInSet(b.table4Name, b.set4Name) {
+			if ip == ipInSet {
+				// IP is already in set.
 				return nil
 			}
-			return fmt.Errorf(`failed to add element to set "%s": %w`, b.set4Name, err)
+		}
+		if s, _, err := execute("nft", "add", "element", "ip", b.table4Name, b.set4Name, fmt.Sprintf("{ %s timeout %ds }", ip, ds)); err != nil {
+			return fmt.Errorf(`failed to add element to set "%s": %s`, b.set4Name, s)
 		}
 	}
 

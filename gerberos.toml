@@ -1,5 +1,5 @@
 # Backend to use, choice of ["ipset", "nft"].
-backend = "ipset"
+backend = "nft"
 
 # If true, additional diagnostic information
 # will be printed to stdout.
