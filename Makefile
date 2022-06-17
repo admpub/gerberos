@@ -1,3 +1,5 @@
+VERSION := $(or $(shell git tag --points-at HEAD),dev)
+
 all: run
 
 clean:
@@ -6,15 +8,19 @@ clean:
 
 dist: clean
 	mkdir dist
-	CGO_ENABLED=0 go build -o dist/gerberos
+	CGO_ENABLED=0 go build -o dist/gerberos -ldflags "-X main.version=$(VERSION)"
 
 release: dist
 	cp -r licenses-third-party gerberos.toml gerberos.service LICENSE dist
-	cd dist && tar czvf gerberos.tar.gz *
+	cd dist && tar czvf gerberos-$(VERSION).tar.gz *
 
 run: dist
-	sudo dist/gerberos
+	dist/gerberos
 
 test: clean
-	go test -coverprofile=gerberos.coverage
+	go test -v -coverprofile=gerberos.coverage
+	go tool cover -html=gerberos.coverage
+
+test_system: clean
+	go test -v -tags=system -coverprofile=gerberos.coverage
 	go tool cover -html=gerberos.coverage

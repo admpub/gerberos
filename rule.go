@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -32,6 +32,7 @@ type rule struct {
 	Aggregate   []string
 	Occurrences []string
 
+	runner      *runner
 	name        string
 	source      source
 	regexp      []*regexp.Regexp
@@ -56,6 +57,10 @@ func (r *rule) initializeSource() error {
 		r.source = &systemdSource{}
 	case "kernel":
 		r.source = &kernelSource{}
+	case "test":
+		r.source = &testSource{}
+	case "process":
+		r.source = &processSource{}
 	default:
 		return errors.New("unknown source")
 	}
@@ -116,6 +121,8 @@ func (r *rule) initializeAction() error {
 		r.action = &banAction{}
 	case "log":
 		r.action = &logAction{}
+	case "test":
+		r.action = &testAction{}
 	default:
 		return errors.New("unknown action")
 	}
@@ -157,11 +164,7 @@ func (r *rule) initializeAggregate() error {
 		res = append(res, re)
 	}
 
-	r.aggregate = &aggregate{
-		registry: make(map[string]net.IP),
-		interval: i,
-		regexp:   res,
-	}
+	r.aggregate = newAggregate(i, res)
 
 	return nil
 }
@@ -190,16 +193,14 @@ func (r *rule) initializeOccurrences() error {
 		return fmt.Errorf("failed to parse interval parameter: %s", err)
 	}
 
-	r.occurrences = &occurrences{
-		registry: make(map[string][]time.Time),
-		interval: i,
-		count:    c,
-	}
+	r.occurrences = newOccurrences(i, c)
 
 	return nil
 }
 
-func (r *rule) initialize() error {
+func (r *rule) initialize(rn *runner) error {
+	r.runner = rn
+
 	if err := r.initializeSource(); err != nil {
 		return err
 	}
@@ -223,8 +224,10 @@ func (r *rule) initialize() error {
 	return nil
 }
 
-func (r *rule) processScanner(n string, args ...string) (chan *match, error) {
-	cmd := exec.Command(n, args...)
+func (r *rule) processScanner(name string, args ...string) (chan *match, error) {
+	stop := make(chan bool, 1)
+
+	cmd := exec.Command(name, args...)
 	o, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -239,14 +242,35 @@ func (r *rule) processScanner(n string, args ...string) (chan *match, error) {
 	}
 	log.Printf(`%s: scanning process stdout and stderr: "%s"`, r.name, cmd)
 
+	go func() {
+		select {
+		case <-stop:
+		case <-r.runner.stopped.Done():
+		}
+		if cmd.Process != nil {
+			cmd.Process.Signal(os.Interrupt)
+			time.Sleep(5 * time.Second)
+			select {
+			case <-stop:
+			default:
+				cmd.Process.Kill()
+			}
+		}
+	}()
+
 	c := make(chan *match, 1)
 	go func() {
+		defer func() {
+			stop <- true
+			close(stop)
+		}()
+
 		sc := bufio.NewScanner(o)
 		for sc.Scan() {
 			if m, err := r.match(sc.Text()); err == nil {
 				c <- m
 			} else {
-				if configuration.Verbose {
+				if r.runner.configuration.Verbose {
 					log.Printf("%s: failed to create match: %s", r.name, err)
 				}
 			}
@@ -256,6 +280,14 @@ func (r *rule) processScanner(n string, args ...string) (chan *match, error) {
 			log.Printf(`%s: error while scanning command "%s": %s`, r.name, cmd, err.Error())
 		}
 		if err = cmd.Wait(); err != nil {
+			var eerr *exec.ExitError
+			if errors.As(err, &eerr) {
+				if eerr.ProcessState.ExitCode() == -1 {
+					// The process was terminated by a signal. This is part of a graceful
+					// shutdown. Therefore it isn't logged.
+					return
+				}
+			}
 			log.Printf(`%s: error while executing command "%s": %s`, r.name, cmd, err.Error())
 		}
 	}()
@@ -269,11 +301,11 @@ func (r *rule) processScanner(n string, args ...string) (chan *match, error) {
 	return c, nil
 }
 
-func (r *rule) worker() {
+func (r *rule) worker(requeue bool) error {
 	c, err := r.source.matches()
 	if err != nil {
 		log.Printf("%s: failed to initialize matches channel: %s", r.name, err)
-		return
+		return err
 	}
 
 	for m := range c {
@@ -289,7 +321,13 @@ func (r *rule) worker() {
 		}
 	}
 
-	time.Sleep(5 * time.Second)
-	log.Printf("%s: queuing worker for respawn", r.name)
-	respawnWorkerChan <- r
+	if requeue {
+		log.Printf("%s: queuing worker for respawn", r.name)
+		select {
+		case r.runner.respawnWorkerChan <- r:
+		case <-r.runner.stopped.Done():
+		}
+	}
+
+	return nil
 }

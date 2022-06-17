@@ -7,7 +7,7 @@ import (
 )
 
 type source interface {
-	initialize(*rule) error
+	initialize(r *rule) error
 	matches() (chan *match, error)
 }
 
@@ -79,4 +79,51 @@ func (k *kernelSource) initialize(r *rule) error {
 
 func (k *kernelSource) matches() (chan *match, error) {
 	return k.rule.processScanner("journalctl", "-kf", "-n", "0")
+}
+
+type testSource struct {
+	rule        *rule
+	matchesErr  error
+	processPath string
+}
+
+func (s *testSource) initialize(r *rule) error {
+	s.rule = r
+
+	return nil
+}
+
+func (s *testSource) matches() (chan *match, error) {
+	if s.matchesErr != nil {
+		return nil, s.matchesErr
+	}
+
+	p := "test/producer"
+	if s.processPath != "" {
+		p = s.processPath
+	}
+	return s.rule.processScanner(p)
+}
+
+type processSource struct {
+	rule *rule
+	name string
+	args []string
+}
+
+func (s *processSource) initialize(r *rule) error {
+	s.rule = r
+
+	if len(r.Source) < 2 {
+		return errors.New("missing process name")
+	}
+	s.name = r.Source[1]
+
+	s.args = r.Source[2:]
+
+	return nil
+}
+
+func (s *processSource) matches() (chan *match, error) {
+	return s.rule.processScanner(s.name, s.args...)
 }

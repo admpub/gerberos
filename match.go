@@ -18,9 +18,9 @@ type match struct {
 	regexp *regexp.Regexp
 }
 
-func (r *rule) matchSimple(l string) (*match, error) {
+func (r *rule) matchSimple(line string) (*match, error) {
 	for _, re := range r.regexp {
-		m := re.FindStringSubmatch(l)
+		m := re.FindStringSubmatch(line)
 		if len(m) == 0 {
 			continue
 		}
@@ -39,7 +39,7 @@ func (r *rule) matchSimple(l string) (*match, error) {
 		}
 
 		return &match{
-			line:   l,
+			line:   line,
 			time:   time.Now(),
 			ip:     h,
 			ipv6:   ph.To4() == nil,
@@ -47,14 +47,14 @@ func (r *rule) matchSimple(l string) (*match, error) {
 		}, nil
 	}
 
-	return nil, errors.New("line does not match any regexp")
+	return nil, fmt.Errorf(`line "%s" does not match any regexp`, line)
 }
 
-func (r *rule) matchAggregate(l string) (*match, error) {
+func (r *rule) matchAggregate(line string) (*match, error) {
 	a := r.aggregate
 
 	for _, re := range a.regexp {
-		m := re.FindStringSubmatch(l)
+		m := re.FindStringSubmatch(line)
 		if len(m) == 0 {
 			continue
 		}
@@ -73,7 +73,7 @@ func (r *rule) matchAggregate(l string) (*match, error) {
 			a.registryMutex.Unlock()
 
 			return &match{
-				line:   l,
+				line:   line,
 				time:   time.Now(),
 				ip:     ip.String(),
 				ipv6:   ip.To4() == nil,
@@ -84,7 +84,7 @@ func (r *rule) matchAggregate(l string) (*match, error) {
 	}
 
 	for _, re := range r.regexp {
-		m := re.FindStringSubmatch(l)
+		m := re.FindStringSubmatch(line)
 		if len(m) == 0 {
 			continue
 		}
@@ -109,7 +109,7 @@ func (r *rule) matchAggregate(l string) (*match, error) {
 
 		a.registryMutex.Lock()
 		a.registry[id] = pip
-		if configuration.Verbose {
+		if r.runner.configuration.Verbose {
 			log.Printf(`%s: added ID "%s" with IP %s to registry`, r.name, id, pip)
 		}
 		a.registryMutex.Unlock()
@@ -119,7 +119,7 @@ func (r *rule) matchAggregate(l string) (*match, error) {
 			a.registryMutex.Lock()
 			if ip, e := a.registry[id]; e {
 				delete(a.registry, id)
-				if configuration.Verbose {
+				if r.runner.configuration.Verbose {
 					log.Printf(`%s: removed ID "%s" with IP %s from registry`, r.name, id, ip)
 				}
 			}
@@ -129,15 +129,15 @@ func (r *rule) matchAggregate(l string) (*match, error) {
 		return nil, errors.New("incomplete aggregate")
 	}
 
-	return nil, errors.New("line does not match any regexp")
+	return nil, fmt.Errorf(`line "%s" does not match any regexp`, line)
 }
 
-func (r *rule) match(l string) (*match, error) {
+func (r *rule) match(line string) (*match, error) {
 	if r.aggregate != nil {
-		return r.matchAggregate(l)
+		return r.matchAggregate(line)
 	}
 
-	return r.matchSimple(l)
+	return r.matchSimple(line)
 }
 
 func (m match) stringSimple() string {
