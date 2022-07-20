@@ -1,4 +1,4 @@
-package main
+package gerberos
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 type runner struct {
-	configuration      *configuration
+	configuration      *Configuration
 	backend            backend
 	respawnWorkerDelay time.Duration
 	respawnWorkerChan  chan *rule
@@ -21,7 +21,7 @@ type runner struct {
 	stopped            context.Context
 }
 
-func (rn *runner) initialize() error {
+func (rn *runner) Initialize() error {
 	if rn.configuration == nil {
 		return errors.New("configuration has not been set")
 	}
@@ -54,7 +54,7 @@ func (rn *runner) initialize() error {
 	return nil
 }
 
-func (rn *runner) finalize() error {
+func (rn *runner) Finalize() error {
 	if err := rn.backend.Finalize(); err != nil {
 		return fmt.Errorf("failed to finalize backend: %w", err)
 	}
@@ -74,7 +74,7 @@ func (rn *runner) spawnWorker(r *rule, requeue bool) {
 	log.Printf("%s: spawned worker", r.name)
 }
 
-func (rn *runner) run(requeueWorkers bool) {
+func (rn *runner) Run(requeueWorkers bool) {
 	for _, r := range rn.configuration.Rules {
 		rn.spawnWorker(r, requeueWorkers)
 	}
@@ -103,7 +103,11 @@ func (rn *runner) run(requeueWorkers bool) {
 	}
 }
 
-func newRunner(c *configuration) *runner {
+func (rn *runner) Stop() {
+	rn.stop()
+}
+
+func NewRunner(c *Configuration) *runner {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &runner{
 		configuration:      c,

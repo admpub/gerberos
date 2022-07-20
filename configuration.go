@@ -1,4 +1,4 @@
-package main
+package gerberos
 
 import (
 	"errors"
@@ -9,24 +9,24 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type configuration struct {
+type Configuration struct {
 	Verbose      bool
 	Backend      string
 	SaveFilePath string
 	Rules        map[string]*rule
 }
 
-func (c *configuration) readFile(path string) error {
+func (c *Configuration) ReadFile(path string) error {
 	cf, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("failed to open configuration file: %w", err)
 	}
 	defer cf.Close()
 
-	return c.read(cf)
+	return c.Read(cf)
 }
 
-func (c *configuration) read(r io.Reader) error {
+func (c *Configuration) Read(r io.Reader) error {
 	if _, err := toml.NewDecoder(r).Decode(&c); err != nil {
 		var terr toml.ParseError
 		if errors.As(err, &terr) {

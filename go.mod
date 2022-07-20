@@ -1,4 +1,4 @@
-module github.com/bitflipp/gerberos
+module github.com/admpub/gerberos
 
 go 1.18
 
