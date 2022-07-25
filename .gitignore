@@ -2,4 +2,5 @@
 dist/
 *.coverage
 *.save
-gerberos
+/gerberos
+/cmd/gerberos/gerberos
