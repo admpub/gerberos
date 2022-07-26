@@ -109,7 +109,7 @@ func (r *rule) matchAggregate(line string) (*match, error) {
 
 		a.registryMutex.Lock()
 		a.registry[id] = pip
-		if r.runner.configuration.Verbose {
+		if r.runner.Configuration.Verbose {
 			log.Printf(`%s: added ID "%s" with IP %s to registry`, r.name, id, pip)
 		}
 		a.registryMutex.Unlock()
@@ -119,7 +119,7 @@ func (r *rule) matchAggregate(line string) (*match, error) {
 			a.registryMutex.Lock()
 			if ip, e := a.registry[id]; e {
 				delete(a.registry, id)
-				if r.runner.configuration.Verbose {
+				if r.runner.Configuration.Verbose {
 					log.Printf(`%s: removed ID "%s" with IP %s from registry`, r.name, id, ip)
 				}
 			}

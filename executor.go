@@ -6,18 +6,22 @@ import (
 	"os/exec"
 )
 
-type executor interface {
-	execute(name string, args ...string) (string, int, error)
-	executeWithStd(stdin io.Reader, stdout io.Writer, name string, args ...string) (string, int, error)
+type Executor interface {
+	Execute(name string, args ...string) (string, int, error)
+	ExecuteWithStd(stdin io.Reader, stdout io.Writer, name string, args ...string) (string, int, error)
+}
+
+func NewDefaultExecutor() *defaultExecutor {
+	return &defaultExecutor{}
 }
 
 type defaultExecutor struct{}
 
-func (e *defaultExecutor) execute(name string, args ...string) (string, int, error) {
-	return e.executeWithStd(nil, nil, name, args...)
+func (e *defaultExecutor) Execute(name string, args ...string) (string, int, error) {
+	return e.ExecuteWithStd(nil, nil, name, args...)
 }
 
-func (e *defaultExecutor) executeWithStd(stdin io.Reader, stdout io.Writer, name string, args ...string) (string, int, error) {
+func (e *defaultExecutor) ExecuteWithStd(stdin io.Reader, stdout io.Writer, name string, args ...string) (string, int, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout

@@ -36,7 +36,7 @@ func (e *testFaultyExecutor) executeWithStd(stdin io.Reader, stdout io.Writer, n
 	}
 
 	de := &defaultExecutor{}
-	return de.executeWithStd(stdin, stdout, name, args...)
+	return de.ExecuteWithStd(stdin, stdout, name, args...)
 }
 
 func newTestFaultyExecutor(output string, exitCode int, err error, name string, args ...string) *testFaultyExecutor {
@@ -69,7 +69,7 @@ func newTestConfiguration() (*Configuration, error) {
 	return c, c.ReadFile("test/configuration.toml")
 }
 
-func newTestRunner() (*runner, error) {
+func newTestRunner() (*Runner, error) {
 	c, err := newTestConfiguration()
 	if err != nil {
 		return nil, err

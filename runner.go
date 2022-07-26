@@ -11,40 +11,38 @@ import (
 	"time"
 )
 
-type runner struct {
-	configuration      *Configuration
-	backend            backend
+type Runner struct {
+	Configuration      *Configuration
+	backend            Backend
 	respawnWorkerDelay time.Duration
 	respawnWorkerChan  chan *rule
-	executor           executor
+	Executor           Executor
 	stop               context.CancelFunc
 	stopped            context.Context
 }
 
-func (rn *runner) Initialize() error {
-	if rn.configuration == nil {
+func (rn *Runner) Initialize() error {
+	if rn.Configuration == nil {
 		return errors.New("configuration has not been set")
 	}
 
 	// Backend
-	switch rn.configuration.Backend {
+	switch rn.Configuration.Backend {
 	case "":
 		return errors.New("missing configuration value for backend")
-	case "ipset":
-		rn.backend = &ipsetBackend{runner: rn}
-	case "nft":
-		rn.backend = &nftBackend{runner: rn}
-	case "test":
-		rn.backend = &testBackend{runner: rn}
 	default:
-		return fmt.Errorf("unknown backend: %s", rn.configuration.Backend)
+		bfn, ok := backends[rn.Configuration.Backend]
+		if !ok {
+			return fmt.Errorf("unknown backend: %s", rn.Configuration.Backend)
+		}
+		rn.backend = bfn(rn)
 	}
 	if err := rn.backend.Initialize(); err != nil {
 		return fmt.Errorf("failed to initialize backend: %w", err)
 	}
 
 	// Rules
-	for n, r := range rn.configuration.Rules {
+	for n, r := range rn.Configuration.Rules {
 		r.name = n
 		if err := r.initialize(rn); err != nil {
 			return fmt.Errorf(`failed to initialize rule "%s": %s`, n, err)
@@ -54,7 +52,7 @@ func (rn *runner) Initialize() error {
 	return nil
 }
 
-func (rn *runner) Finalize() error {
+func (rn *Runner) Finalize() error {
 	if err := rn.backend.Finalize(); err != nil {
 		return fmt.Errorf("failed to finalize backend: %w", err)
 	}
@@ -62,7 +60,7 @@ func (rn *runner) Finalize() error {
 	return nil
 }
 
-func (rn *runner) spawnWorker(r *rule, requeue bool) {
+func (rn *Runner) spawnWorker(r *rule, requeue bool) {
 	go func() {
 		select {
 		case <-rn.stopped.Done():
@@ -74,8 +72,8 @@ func (rn *runner) spawnWorker(r *rule, requeue bool) {
 	log.Printf("%s: spawned worker", r.name)
 }
 
-func (rn *runner) Run(requeueWorkers bool) {
-	for _, r := range rn.configuration.Rules {
+func (rn *Runner) Run(requeueWorkers bool) {
+	for _, r := range rn.Configuration.Rules {
 		rn.spawnWorker(r, requeueWorkers)
 	}
 
@@ -103,17 +101,17 @@ func (rn *runner) Run(requeueWorkers bool) {
 	}
 }
 
-func (rn *runner) Stop() {
+func (rn *Runner) Stop() {
 	rn.stop()
 }
 
-func NewRunner(c *Configuration) *runner {
+func NewRunner(c *Configuration) *Runner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &runner{
-		configuration:      c,
+	return &Runner{
+		Configuration:      c,
 		respawnWorkerDelay: 5 * time.Second,
 		respawnWorkerChan:  make(chan *rule),
-		executor:           &defaultExecutor{},
+		Executor:           &defaultExecutor{},
 		stop:               cancel,
 		stopped:            ctx,
 	}

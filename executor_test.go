@@ -8,7 +8,7 @@ import (
 func TestExecutorDefaultExecute(t *testing.T) {
 	e := &defaultExecutor{}
 	ts := "test"
-	o, c, err := e.execute("echo", ts)
+	o, c, err := e.Execute("echo", ts)
 	testNoError(t, err)
 	o = strings.TrimSuffix(o, "\n")
 	if o != ts {
@@ -21,7 +21,7 @@ func TestExecutorDefaultExecute(t *testing.T) {
 
 func TestExecutorDefaultExitError(t *testing.T) {
 	e := &defaultExecutor{}
-	_, c, err := e.execute("cat", "--invalid-flag")
+	_, c, err := e.Execute("cat", "--invalid-flag")
 	testError(t, err)
 	if c != 1 {
 		t.Errorf(`expected exit code 1, got %d`, c)
@@ -30,7 +30,7 @@ func TestExecutorDefaultExitError(t *testing.T) {
 
 func TestExecutorDefaultUnknownCommandFlaky(t *testing.T) {
 	e := &defaultExecutor{}
-	_, c, err := e.execute("unknown_command_baighah6othoo0ikei9Ahngay2geifah")
+	_, c, err := e.Execute("unknown_command_baighah6othoo0ikei9Ahngay2geifah")
 	testError(t, err)
 	if c != -1 {
 		t.Errorf(`expected exit code -1, got %d`, c)

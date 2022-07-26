@@ -32,7 +32,7 @@ type rule struct {
 	Aggregate   []string
 	Occurrences []string
 
-	runner      *runner
+	runner      *Runner
 	name        string
 	source      source
 	regexp      []*regexp.Regexp
@@ -198,7 +198,7 @@ func (r *rule) initializeOccurrences() error {
 	return nil
 }
 
-func (r *rule) initialize(rn *runner) error {
+func (r *rule) initialize(rn *Runner) error {
 	r.runner = rn
 
 	if err := r.initializeSource(); err != nil {
@@ -270,7 +270,7 @@ func (r *rule) processScanner(name string, args ...string) (chan *match, error) 
 			if m, err := r.match(sc.Text()); err == nil {
 				c <- m
 			} else {
-				if r.runner.configuration.Verbose {
+				if r.runner.Configuration.Verbose {
 					log.Printf("%s: failed to create match: %s", r.name, err)
 				}
 			}
