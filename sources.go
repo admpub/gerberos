@@ -7,17 +7,17 @@ import (
 )
 
 type source interface {
-	initialize(r *rule) error
+	initialize(r *Rule) error
 	matches() (chan *match, error)
 }
 
 type fileSource struct {
-	rule *rule
+	Rule *Rule
 	path string
 }
 
-func (s *fileSource) initialize(r *rule) error {
-	s.rule = r
+func (s *fileSource) initialize(r *Rule) error {
+	s.Rule = r
 
 	if len(r.Source) < 2 {
 		return errors.New("missing path parameter")
@@ -36,16 +36,16 @@ func (s *fileSource) initialize(r *rule) error {
 }
 
 func (s *fileSource) matches() (chan *match, error) {
-	return s.rule.processScanner("tail", "-n", "0", "-F", s.path)
+	return s.Rule.processScanner("tail", "-n", "0", "-F", s.path)
 }
 
 type systemdSource struct {
-	rule    *rule
+	Rule    *Rule
 	service string
 }
 
-func (s *systemdSource) initialize(r *rule) error {
-	s.rule = r
+func (s *systemdSource) initialize(r *Rule) error {
+	s.Rule = r
 
 	if len(r.Source) < 2 {
 		return errors.New("missing service parameter")
@@ -60,15 +60,15 @@ func (s *systemdSource) initialize(r *rule) error {
 }
 
 func (s *systemdSource) matches() (chan *match, error) {
-	return s.rule.processScanner("journalctl", "-n", "0", "-f", "-u", s.service)
+	return s.Rule.processScanner("journalctl", "-n", "0", "-f", "-u", s.service)
 }
 
 type kernelSource struct {
-	rule *rule
+	Rule *Rule
 }
 
-func (k *kernelSource) initialize(r *rule) error {
-	k.rule = r
+func (k *kernelSource) initialize(r *Rule) error {
+	k.Rule = r
 
 	if len(r.Source) > 1 {
 		return errors.New("superfluous parameter(s)")
@@ -78,17 +78,17 @@ func (k *kernelSource) initialize(r *rule) error {
 }
 
 func (k *kernelSource) matches() (chan *match, error) {
-	return k.rule.processScanner("journalctl", "-kf", "-n", "0")
+	return k.Rule.processScanner("journalctl", "-kf", "-n", "0")
 }
 
 type testSource struct {
-	rule        *rule
+	Rule        *Rule
 	matchesErr  error
 	processPath string
 }
 
-func (s *testSource) initialize(r *rule) error {
-	s.rule = r
+func (s *testSource) initialize(r *Rule) error {
+	s.Rule = r
 
 	return nil
 }
@@ -102,17 +102,17 @@ func (s *testSource) matches() (chan *match, error) {
 	if s.processPath != "" {
 		p = s.processPath
 	}
-	return s.rule.processScanner(p)
+	return s.Rule.processScanner(p)
 }
 
 type processSource struct {
-	rule *rule
+	Rule *Rule
 	name string
 	args []string
 }
 
-func (s *processSource) initialize(r *rule) error {
-	s.rule = r
+func (s *processSource) initialize(r *Rule) error {
+	s.Rule = r
 
 	if len(r.Source) < 2 {
 		return errors.New("missing process name")
@@ -125,5 +125,5 @@ func (s *processSource) initialize(r *rule) error {
 }
 
 func (s *processSource) matches() (chan *match, error) {
-	return s.rule.processScanner(s.name, s.args...)
+	return s.Rule.processScanner(s.name, s.args...)
 }

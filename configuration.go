@@ -13,7 +13,7 @@ type Configuration struct {
 	Verbose      bool
 	Backend      string
 	SaveFilePath string
-	Rules        map[string]*rule
+	Rules        map[string]*Rule
 }
 
 func (c *Configuration) ReadFile(path string) error {

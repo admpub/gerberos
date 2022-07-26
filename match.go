@@ -18,7 +18,7 @@ type match struct {
 	regexp *regexp.Regexp
 }
 
-func (r *rule) matchSimple(line string) (*match, error) {
+func (r *Rule) matchSimple(line string) (*match, error) {
 	for _, re := range r.regexp {
 		m := re.FindStringSubmatch(line)
 		if len(m) == 0 {
@@ -50,7 +50,7 @@ func (r *rule) matchSimple(line string) (*match, error) {
 	return nil, fmt.Errorf(`line "%s" does not match any regexp`, line)
 }
 
-func (r *rule) matchAggregate(line string) (*match, error) {
+func (r *Rule) matchAggregate(line string) (*match, error) {
 	a := r.aggregate
 
 	for _, re := range a.regexp {
@@ -132,7 +132,7 @@ func (r *rule) matchAggregate(line string) (*match, error) {
 	return nil, fmt.Errorf(`line "%s" does not match any regexp`, line)
 }
 
-func (r *rule) match(line string) (*match, error) {
+func (r *Rule) match(line string) (*match, error) {
 	if r.aggregate != nil {
 		return r.matchAggregate(line)
 	}

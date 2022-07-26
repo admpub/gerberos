@@ -26,11 +26,11 @@ type testFaultyExecutor struct {
 	err      error
 }
 
-func (e *testFaultyExecutor) execute(name string, args ...string) (string, int, error) {
-	return e.executeWithStd(nil, nil, name, args...)
+func (e *testFaultyExecutor) Execute(name string, args ...string) (string, int, error) {
+	return e.ExecuteWithStd(nil, nil, name, args...)
 }
 
-func (e *testFaultyExecutor) executeWithStd(stdin io.Reader, stdout io.Writer, name string, args ...string) (string, int, error) {
+func (e *testFaultyExecutor) ExecuteWithStd(stdin io.Reader, stdout io.Writer, name string, args ...string) (string, int, error) {
 	if name == e.name && reflect.DeepEqual(args, e.args) {
 		return e.output, e.exitCode, e.err
 	}
@@ -39,7 +39,7 @@ func (e *testFaultyExecutor) executeWithStd(stdin io.Reader, stdout io.Writer, n
 	return de.ExecuteWithStd(stdin, stdout, name, args...)
 }
 
-func newTestFaultyExecutor(output string, exitCode int, err error, name string, args ...string) *testFaultyExecutor {
+func NewTestFaultyExecutor(output string, exitCode int, err error, name string, args ...string) *testFaultyExecutor {
 	return &testFaultyExecutor{
 		name:     name,
 		args:     args,
@@ -78,8 +78,8 @@ func newTestRunner() (*Runner, error) {
 	return NewRunner(c), nil
 }
 
-func newTestValidRule() *rule {
-	return &rule{
+func newTestValidRule() *Rule {
+	return &Rule{
 		Action:      []string{"ban", "1h"},
 		Regexp:      []string{`%ip%\s%id%`},
 		Source:      []string{"test"},

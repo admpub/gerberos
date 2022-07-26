@@ -15,7 +15,7 @@ type Runner struct {
 	Configuration      *Configuration
 	backend            Backend
 	respawnWorkerDelay time.Duration
-	respawnWorkerChan  chan *rule
+	respawnWorkerChan  chan *Rule
 	Executor           Executor
 	stop               context.CancelFunc
 	stopped            context.Context
@@ -45,7 +45,7 @@ func (rn *Runner) Initialize() error {
 	for n, r := range rn.Configuration.Rules {
 		r.name = n
 		if err := r.initialize(rn); err != nil {
-			return fmt.Errorf(`failed to initialize rule "%s": %s`, n, err)
+			return fmt.Errorf(`failed to initialize Rule "%s": %s`, n, err)
 		}
 	}
 
@@ -60,7 +60,7 @@ func (rn *Runner) Finalize() error {
 	return nil
 }
 
-func (rn *Runner) spawnWorker(r *rule, requeue bool) {
+func (rn *Runner) spawnWorker(r *Rule, requeue bool) {
 	go func() {
 		select {
 		case <-rn.stopped.Done():
@@ -110,7 +110,7 @@ func NewRunner(c *Configuration) *Runner {
 	return &Runner{
 		Configuration:      c,
 		respawnWorkerDelay: 5 * time.Second,
-		respawnWorkerChan:  make(chan *rule),
+		respawnWorkerChan:  make(chan *Rule),
 		Executor:           &defaultExecutor{},
 		stop:               cancel,
 		stopped:            ctx,

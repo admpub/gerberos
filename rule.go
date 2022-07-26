@@ -25,7 +25,7 @@ var (
 	idRegexpText  = `(?P<id>(.*))`
 )
 
-type rule struct {
+type Rule struct {
 	Source      []string
 	Regexp      []string
 	Action      []string
@@ -41,7 +41,7 @@ type rule struct {
 	occurrences *occurrences
 }
 
-func (r *rule) initializeSource() error {
+func (r *Rule) initializeSource() error {
 	if r.Source == nil {
 		return errors.New("missing source")
 	}
@@ -68,7 +68,7 @@ func (r *rule) initializeSource() error {
 	return r.source.initialize(r)
 }
 
-func (r *rule) initializeRegexp() error {
+func (r *Rule) initializeRegexp() error {
 	if r.Regexp == nil {
 		return errors.New("missing regexp")
 	}
@@ -107,7 +107,7 @@ func (r *rule) initializeRegexp() error {
 	return nil
 }
 
-func (r *rule) initializeAction() error {
+func (r *Rule) initializeAction() error {
 	if r.Action == nil {
 		return errors.New("missing action")
 	}
@@ -130,7 +130,7 @@ func (r *rule) initializeAction() error {
 	return r.action.initialize(r)
 }
 
-func (r *rule) initializeAggregate() error {
+func (r *Rule) initializeAggregate() error {
 	if r.Aggregate == nil {
 		return nil
 	}
@@ -169,7 +169,7 @@ func (r *rule) initializeAggregate() error {
 	return nil
 }
 
-func (r *rule) initializeOccurrences() error {
+func (r *Rule) initializeOccurrences() error {
 	if r.Occurrences == nil {
 		return nil
 	}
@@ -198,7 +198,7 @@ func (r *rule) initializeOccurrences() error {
 	return nil
 }
 
-func (r *rule) initialize(rn *Runner) error {
+func (r *Rule) initialize(rn *Runner) error {
 	r.runner = rn
 
 	if err := r.initializeSource(); err != nil {
@@ -224,7 +224,7 @@ func (r *rule) initialize(rn *Runner) error {
 	return nil
 }
 
-func (r *rule) processScanner(name string, args ...string) (chan *match, error) {
+func (r *Rule) processScanner(name string, args ...string) (chan *match, error) {
 	stop := make(chan bool, 1)
 
 	cmd := exec.Command(name, args...)
@@ -301,7 +301,7 @@ func (r *rule) processScanner(name string, args ...string) (chan *match, error) 
 	return c, nil
 }
 
-func (r *rule) worker(requeue bool) error {
+func (r *Rule) worker(requeue bool) error {
 	c, err := r.source.matches()
 	if err != nil {
 		log.Printf("%s: failed to initialize matches channel: %s", r.name, err)

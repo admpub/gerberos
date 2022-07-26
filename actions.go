@@ -8,16 +8,16 @@ import (
 )
 
 type action interface {
-	initialize(r *rule) error
+	initialize(r *Rule) error
 	perform(m *match) error
 }
 
 type banAction struct {
-	rule     *rule
+	rule     *Rule
 	duration time.Duration
 }
 
-func (a *banAction) initialize(r *rule) error {
+func (a *banAction) initialize(r *Rule) error {
 	a.rule = r
 
 	if len(r.Action) < 2 {
@@ -49,11 +49,11 @@ func (a *banAction) perform(m *match) error {
 }
 
 type logAction struct {
-	rule     *rule
+	rule     *Rule
 	extended bool
 }
 
-func (a *logAction) initialize(r *rule) error {
+func (a *logAction) initialize(r *Rule) error {
 	a.rule = r
 
 	if len(r.Action) < 2 {
@@ -89,10 +89,10 @@ func (a *logAction) perform(m *match) error {
 }
 
 type testAction struct {
-	rule *rule
+	rule *Rule
 }
 
-func (a *testAction) initialize(r *rule) error {
+func (a *testAction) initialize(r *Rule) error {
 	a.rule = r
 
 	return nil
