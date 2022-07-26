@@ -11,7 +11,7 @@ func TestMatches(t *testing.T) {
 	testNoError(t, err)
 
 	// Simple match
-	ml := func(s, re string, e bool, l string) *match {
+	ml := func(s, re string, e bool, l string) *Match {
 		r := newTestValidRule()
 		r.Aggregate = nil
 		r.Regexp = []string{re}
@@ -19,7 +19,7 @@ func TestMatches(t *testing.T) {
 			t.Errorf("%s: failed to initialize rule", err)
 		}
 
-		m, err := r.match(l)
+		m, err := r.Match(l)
 		if e != (err == nil) {
 			t.Errorf(`%s: unexpected result`, s)
 		}
@@ -28,7 +28,7 @@ func TestMatches(t *testing.T) {
 	}
 
 	// Aggregate match
-	mla := func(s string, e bool, ls ...string) *match {
+	mla := func(s string, e bool, ls ...string) *Match {
 		r := newTestValidRule()
 
 		if err := r.initialize(rn); err != nil {
@@ -36,7 +36,7 @@ func TestMatches(t *testing.T) {
 		}
 
 		for i, l := range ls {
-			m, err := r.match(l)
+			m, err := r.Match(l)
 			if i == len(ls)-1 {
 				if e != (err == nil) {
 					t.Errorf(`%s: unexpected result`, s)
@@ -51,10 +51,10 @@ func TestMatches(t *testing.T) {
 	// IPv4/6
 	em := func(s, h string, ipv6 bool) {
 		m := ml(s, "%ip%", true, h)
-		if h != m.ip {
-			t.Errorf(`%s: expected IP "%s", got "%s"`, s, h, m.ip)
+		if h != m.IP {
+			t.Errorf(`%s: expected IP "%s", got "%s"`, s, h, m.IP)
 		}
-		if ipv6 != m.ipv6 {
+		if ipv6 != m.IPv6 {
 			t.Errorf("%s: unexpected IPv6 flag", s)
 		}
 	}
@@ -112,12 +112,12 @@ func TestMatches(t *testing.T) {
 }
 
 func TestMatchesStringer(t *testing.T) {
-	m := &match{
-		time:   time.Time{},
-		line:   "line",
-		ip:     "123.123.123.123",
-		ipv6:   false,
-		regexp: regexp.MustCompile("regexp"),
+	m := &Match{
+		Time:   time.Time{},
+		Line:   "line",
+		IP:     "123.123.123.123",
+		IPv6:   false,
+		Regexp: regexp.MustCompile("regexp"),
 	}
 
 	ess := `time = 0001-01-01T00:00:00Z, IP = "123.123.123.123", IPv4`
@@ -127,7 +127,7 @@ func TestMatchesStringer(t *testing.T) {
 	}
 
 	ese := `time = 0001-01-01T00:00:00Z, IP = "123.123.123.123", IPv4, line = "line", regexp = "regexp"`
-	gse := m.stringExtended()
+	gse := m.StringExtended()
 	if gss != ess {
 		t.Errorf(`expected: "%s", got "%s"`, ese, gse)
 	}
@@ -138,16 +138,16 @@ func TestMatchesStringer(t *testing.T) {
 		t.Errorf(`expected: "%s", got "%s"`, es, gs)
 	}
 
-	m6 := &match{
-		time:   time.Time{},
-		line:   "line",
-		ip:     "1:5ee:bad:c0de",
-		ipv6:   true,
-		regexp: regexp.MustCompile("regexp"),
+	m6 := &Match{
+		Time:   time.Time{},
+		Line:   "line",
+		IP:     "1:5ee:bad:c0de",
+		IPv6:   true,
+		Regexp: regexp.MustCompile("regexp"),
 	}
 
 	ese6 := `time = 0001-01-01T00:00:00Z, IP = "1:5ee:bad:c0de", IPv6, line = "line", regexp = "regexp"`
-	gse6 := m6.stringExtended()
+	gse6 := m6.StringExtended()
 	if ese6 != gse6 {
 		t.Errorf(`expected: "%s", got "%s"`, ese6, gse6)
 	}
@@ -159,9 +159,9 @@ func TestMatchesAggregateInvalid(t *testing.T) {
 	r := newTestValidRule()
 	testNoError(t, r.initialize(rn))
 	r.regexp = []*regexp.Regexp{regexp.MustCompile("missing IP subexpression")}
-	_, err = r.matchAggregate("missing IP subexpression")
+	_, err = r.MatchAggregate("missing IP subexpression")
 	testError(t, err)
 	r.regexp = []*regexp.Regexp{regexp.MustCompile(ipRegexpText)}
-	_, err = r.matchAggregate("123.123.123.123")
+	_, err = r.MatchAggregate("123.123.123.123")
 	testError(t, err)
 }

@@ -6,9 +6,41 @@ import (
 	"os"
 )
 
-type source interface {
-	initialize(r *Rule) error
-	matches() (chan *match, error)
+type Source interface {
+	Initialize(r *Rule) error
+	Matches() (chan *Match, error)
+}
+
+var sources = map[string]func() Source{
+	"file":    NewFileSource,
+	"systemd": NewSystemdSource,
+	"kernel":  NewKernelSource,
+	"test":    NewTestSource,
+	"process": NewProcessSource,
+}
+
+func RegisterSource(name string, fn func() Source) {
+	sources[name] = fn
+}
+
+func NewFileSource() Source {
+	return &fileSource{}
+}
+
+func NewSystemdSource() Source {
+	return &systemdSource{}
+}
+
+func NewKernelSource() Source {
+	return &kernelSource{}
+}
+
+func NewTestSource() Source {
+	return &testSource{}
+}
+
+func NewProcessSource() Source {
+	return &processSource{}
 }
 
 type fileSource struct {
@@ -16,7 +48,7 @@ type fileSource struct {
 	path string
 }
 
-func (s *fileSource) initialize(r *Rule) error {
+func (s *fileSource) Initialize(r *Rule) error {
 	s.Rule = r
 
 	if len(r.Source) < 2 {
@@ -35,8 +67,8 @@ func (s *fileSource) initialize(r *Rule) error {
 	return nil
 }
 
-func (s *fileSource) matches() (chan *match, error) {
-	return s.Rule.processScanner("tail", "-n", "0", "-F", s.path)
+func (s *fileSource) Matches() (chan *Match, error) {
+	return s.Rule.ProcessScanner("tail", "-n", "0", "-F", s.path)
 }
 
 type systemdSource struct {
@@ -44,7 +76,7 @@ type systemdSource struct {
 	service string
 }
 
-func (s *systemdSource) initialize(r *Rule) error {
+func (s *systemdSource) Initialize(r *Rule) error {
 	s.Rule = r
 
 	if len(r.Source) < 2 {
@@ -59,15 +91,15 @@ func (s *systemdSource) initialize(r *Rule) error {
 	return nil
 }
 
-func (s *systemdSource) matches() (chan *match, error) {
-	return s.Rule.processScanner("journalctl", "-n", "0", "-f", "-u", s.service)
+func (s *systemdSource) Matches() (chan *Match, error) {
+	return s.Rule.ProcessScanner("journalctl", "-n", "0", "-f", "-u", s.service)
 }
 
 type kernelSource struct {
 	Rule *Rule
 }
 
-func (k *kernelSource) initialize(r *Rule) error {
+func (k *kernelSource) Initialize(r *Rule) error {
 	k.Rule = r
 
 	if len(r.Source) > 1 {
@@ -77,8 +109,8 @@ func (k *kernelSource) initialize(r *Rule) error {
 	return nil
 }
 
-func (k *kernelSource) matches() (chan *match, error) {
-	return k.Rule.processScanner("journalctl", "-kf", "-n", "0")
+func (k *kernelSource) Matches() (chan *Match, error) {
+	return k.Rule.ProcessScanner("journalctl", "-kf", "-n", "0")
 }
 
 type testSource struct {
@@ -87,13 +119,13 @@ type testSource struct {
 	processPath string
 }
 
-func (s *testSource) initialize(r *Rule) error {
+func (s *testSource) Initialize(r *Rule) error {
 	s.Rule = r
 
 	return nil
 }
 
-func (s *testSource) matches() (chan *match, error) {
+func (s *testSource) Matches() (chan *Match, error) {
 	if s.matchesErr != nil {
 		return nil, s.matchesErr
 	}
@@ -102,7 +134,7 @@ func (s *testSource) matches() (chan *match, error) {
 	if s.processPath != "" {
 		p = s.processPath
 	}
-	return s.Rule.processScanner(p)
+	return s.Rule.ProcessScanner(p)
 }
 
 type processSource struct {
@@ -111,7 +143,7 @@ type processSource struct {
 	args []string
 }
 
-func (s *processSource) initialize(r *Rule) error {
+func (s *processSource) Initialize(r *Rule) error {
 	s.Rule = r
 
 	if len(r.Source) < 2 {
@@ -124,6 +156,6 @@ func (s *processSource) initialize(r *Rule) error {
 	return nil
 }
 
-func (s *processSource) matches() (chan *match, error) {
-	return s.Rule.processScanner(s.name, s.args...)
+func (s *processSource) Matches() (chan *Match, error) {
+	return s.Rule.ProcessScanner(s.name, s.args...)
 }

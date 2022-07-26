@@ -7,9 +7,31 @@ import (
 	"time"
 )
 
-type action interface {
-	initialize(r *Rule) error
-	perform(m *match) error
+type Action interface {
+	Initialize(r *Rule) error
+	Perform(m *Match) error
+}
+
+var actions = map[string]func() Action{
+	"ban":  NewBanAction,
+	"log":  NewLogAction,
+	"test": NewTestAction,
+}
+
+func RegisterAction(name string, afn func() Action) {
+	actions[name] = afn
+}
+
+func NewBanAction() Action {
+	return &banAction{}
+}
+
+func NewLogAction() Action {
+	return &logAction{}
+}
+
+func NewTestAction() Action {
+	return &testAction{}
 }
 
 type banAction struct {
@@ -17,7 +39,7 @@ type banAction struct {
 	duration time.Duration
 }
 
-func (a *banAction) initialize(r *Rule) error {
+func (a *banAction) Initialize(r *Rule) error {
 	a.rule = r
 
 	if len(r.Action) < 2 {
@@ -37,12 +59,12 @@ func (a *banAction) initialize(r *Rule) error {
 	return nil
 }
 
-func (a *banAction) perform(m *match) error {
-	err := a.rule.runner.backend.Ban(m.ip, m.ipv6, a.duration)
+func (a *banAction) Perform(m *Match) error {
+	err := a.rule.runner.backend.Ban(m.IP, m.IPv6, a.duration)
 	if err != nil {
-		log.Printf(`%s: failed to ban IP %s: %s`, a.rule.name, m.ip, err)
+		log.Printf(`%s: failed to ban IP %s: %s`, a.rule.name, m.IP, err)
 	} else {
-		log.Printf(`%s: banned IP %s for %s`, a.rule.name, m.ip, a.duration)
+		log.Printf(`%s: banned IP %s for %s`, a.rule.name, m.IP, a.duration)
 	}
 
 	return err
@@ -53,7 +75,7 @@ type logAction struct {
 	extended bool
 }
 
-func (a *logAction) initialize(r *Rule) error {
+func (a *logAction) Initialize(r *Rule) error {
 	a.rule = r
 
 	if len(r.Action) < 2 {
@@ -76,10 +98,10 @@ func (a *logAction) initialize(r *Rule) error {
 	return nil
 }
 
-func (a *logAction) perform(m *match) error {
+func (a *logAction) Perform(m *Match) error {
 	var s string
 	if a.extended {
-		s = m.stringExtended()
+		s = m.StringExtended()
 	} else {
 		s = m.stringSimple()
 	}
@@ -92,12 +114,12 @@ type testAction struct {
 	rule *Rule
 }
 
-func (a *testAction) initialize(r *Rule) error {
+func (a *testAction) Initialize(r *Rule) error {
 	a.rule = r
 
 	return nil
 }
 
-func (a *testAction) perform(m *match) error {
+func (a *testAction) Perform(m *Match) error {
 	return errFault
 }

@@ -10,15 +10,15 @@ import (
 	"time"
 )
 
-type match struct {
-	time   time.Time
-	line   string
-	ip     string
-	ipv6   bool
-	regexp *regexp.Regexp
+type Match struct {
+	Time   time.Time
+	Line   string
+	IP     string
+	IPv6   bool
+	Regexp *regexp.Regexp
 }
 
-func (r *Rule) matchSimple(line string) (*match, error) {
+func (r *Rule) MatchSimple(line string) (*Match, error) {
 	for _, re := range r.regexp {
 		m := re.FindStringSubmatch(line)
 		if len(m) == 0 {
@@ -38,19 +38,19 @@ func (r *Rule) matchSimple(line string) (*match, error) {
 			return nil, fmt.Errorf(`failed to parse matched IP "%s"`, h)
 		}
 
-		return &match{
-			line:   line,
-			time:   time.Now(),
-			ip:     h,
-			ipv6:   ph.To4() == nil,
-			regexp: re,
+		return &Match{
+			Line:   line,
+			Time:   time.Now(),
+			IP:     h,
+			IPv6:   ph.To4() == nil,
+			Regexp: re,
 		}, nil
 	}
 
 	return nil, fmt.Errorf(`line "%s" does not match any regexp`, line)
 }
 
-func (r *Rule) matchAggregate(line string) (*match, error) {
+func (r *Rule) MatchAggregate(line string) (*Match, error) {
 	a := r.aggregate
 
 	for _, re := range a.regexp {
@@ -72,12 +72,12 @@ func (r *Rule) matchAggregate(line string) (*match, error) {
 			delete(a.registry, id)
 			a.registryMutex.Unlock()
 
-			return &match{
-				line:   line,
-				time:   time.Now(),
-				ip:     ip.String(),
-				ipv6:   ip.To4() == nil,
-				regexp: re,
+			return &Match{
+				Line:   line,
+				Time:   time.Now(),
+				IP:     ip.String(),
+				IPv6:   ip.To4() == nil,
+				Regexp: re,
 			}, nil
 		}
 		a.registryMutex.Unlock()
@@ -132,27 +132,27 @@ func (r *Rule) matchAggregate(line string) (*match, error) {
 	return nil, fmt.Errorf(`line "%s" does not match any regexp`, line)
 }
 
-func (r *Rule) match(line string) (*match, error) {
+func (r *Rule) Match(line string) (*Match, error) {
 	if r.aggregate != nil {
-		return r.matchAggregate(line)
+		return r.MatchAggregate(line)
 	}
 
-	return r.matchSimple(line)
+	return r.MatchSimple(line)
 }
 
-func (m match) stringSimple() string {
+func (m Match) stringSimple() string {
 	ipv := "IPv4"
-	if m.ipv6 {
+	if m.IPv6 {
 		ipv = "IPv6"
 	}
 
-	return fmt.Sprintf(`time = %s, IP = "%s", %s`, m.time.Format(time.RFC3339), m.ip, ipv)
+	return fmt.Sprintf(`time = %s, IP = "%s", %s`, m.Time.Format(time.RFC3339), m.IP, ipv)
 }
 
-func (m match) stringExtended() string {
-	return fmt.Sprintf(`%s, line = "%s", regexp = "%s"`, m, m.line, m.regexp)
+func (m Match) StringExtended() string {
+	return fmt.Sprintf(`%s, line = "%s", regexp = "%s"`, m, m.Line, m.Regexp)
 }
 
-func (m match) String() string {
+func (m Match) String() string {
 	return m.stringSimple()
 }

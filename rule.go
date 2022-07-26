@@ -34,9 +34,9 @@ type Rule struct {
 
 	runner      *Runner
 	name        string
-	source      source
+	source      Source
 	regexp      []*regexp.Regexp
-	action      action
+	action      Action
 	aggregate   *aggregate
 	occurrences *occurrences
 }
@@ -49,23 +49,12 @@ func (r *Rule) initializeSource() error {
 	if len(r.Source) == 0 {
 		return errors.New("empty source")
 	}
-
-	switch r.Source[0] {
-	case "file":
-		r.source = &fileSource{}
-	case "systemd":
-		r.source = &systemdSource{}
-	case "kernel":
-		r.source = &kernelSource{}
-	case "test":
-		r.source = &testSource{}
-	case "process":
-		r.source = &processSource{}
-	default:
+	sfn, ok := sources[r.Source[0]]
+	if !ok {
 		return errors.New("unknown source")
 	}
-
-	return r.source.initialize(r)
+	r.source = sfn()
+	return r.source.Initialize(r)
 }
 
 func (r *Rule) initializeRegexp() error {
@@ -77,7 +66,7 @@ func (r *Rule) initializeRegexp() error {
 		return errors.New("empty regexp")
 	}
 
-	r.regexp = make([]*regexp.Regexp, 0)
+	r.regexp = make([]*regexp.Regexp, 0, len(r.Regexp))
 	for _, s := range r.Regexp {
 		if strings.Contains(s, "(?P<ip>") {
 			return errors.New(`regexp must not contain a subexpression named "ip" ("(?P<ip>")`)
@@ -115,19 +104,12 @@ func (r *Rule) initializeAction() error {
 	if len(r.Action) == 0 {
 		return errors.New("empty action")
 	}
-
-	switch r.Action[0] {
-	case "ban":
-		r.action = &banAction{}
-	case "log":
-		r.action = &logAction{}
-	case "test":
-		r.action = &testAction{}
-	default:
+	afn, ok := actions[r.Action[0]]
+	if !ok {
 		return errors.New("unknown action")
 	}
-
-	return r.action.initialize(r)
+	r.action = afn()
+	return r.action.Initialize(r)
 }
 
 func (r *Rule) initializeAggregate() error {
@@ -147,7 +129,7 @@ func (r *Rule) initializeAggregate() error {
 		return errors.New("missing regexp")
 	}
 
-	res := make([]*regexp.Regexp, 0)
+	res := make([]*regexp.Regexp, 0, len(r.Aggregate)-1)
 	for _, s := range r.Aggregate[1:] {
 		if strings.Contains(s, "(?P<id>") {
 			return errors.New(`regexp must not contain a subexpression named "id" ("(?P<id>")`)
@@ -224,7 +206,7 @@ func (r *Rule) initialize(rn *Runner) error {
 	return nil
 }
 
-func (r *Rule) processScanner(name string, args ...string) (chan *match, error) {
+func (r *Rule) ProcessScanner(name string, args ...string) (chan *Match, error) {
 	stop := make(chan bool, 1)
 
 	cmd := exec.Command(name, args...)
@@ -258,7 +240,7 @@ func (r *Rule) processScanner(name string, args ...string) (chan *match, error) 
 		}
 	}()
 
-	c := make(chan *match, 1)
+	c := make(chan *Match, 1)
 	go func() {
 		defer func() {
 			stop <- true
@@ -267,7 +249,7 @@ func (r *Rule) processScanner(name string, args ...string) (chan *match, error) 
 
 		sc := bufio.NewScanner(o)
 		for sc.Scan() {
-			if m, err := r.match(sc.Text()); err == nil {
+			if m, err := r.Match(sc.Text()); err == nil {
 				c <- m
 			} else {
 				if r.runner.Configuration.Verbose {
@@ -302,7 +284,7 @@ func (r *Rule) processScanner(name string, args ...string) (chan *match, error) 
 }
 
 func (r *Rule) worker(requeue bool) error {
-	c, err := r.source.matches()
+	c, err := r.source.Matches()
 	if err != nil {
 		log.Printf("%s: failed to initialize matches channel: %s", r.name, err)
 		return err
@@ -311,11 +293,11 @@ func (r *Rule) worker(requeue bool) error {
 	for m := range c {
 		p := true
 		if r.occurrences != nil {
-			p = r.occurrences.add(m.ip)
+			p = r.occurrences.add(m.IP)
 		}
 
 		if p {
-			if err := r.action.perform(m); err != nil {
+			if err := r.action.Perform(m); err != nil {
 				log.Printf("%s: failed to perform action: %s", r.name, err)
 			}
 		}

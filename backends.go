@@ -21,7 +21,7 @@ var backends = map[string]func(*Runner) Backend{
 	`test`:  NewTestBackend,
 }
 
-func Register(name string, bfn func(*Runner) Backend) {
+func RegisterBackend(name string, bfn func(*Runner) Backend) {
 	backends[name] = bfn
 }
 
