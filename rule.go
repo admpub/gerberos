@@ -43,15 +43,15 @@ type Rule struct {
 
 func (r *Rule) initializeSource() error {
 	if r.Source == nil {
-		return errors.New("missing source")
+		return ErrMissingSource
 	}
 
 	if len(r.Source) == 0 {
-		return errors.New("empty source")
+		return ErrEmptySource
 	}
 	sfn, ok := sources[r.Source[0]]
 	if !ok {
-		return errors.New("unknown source")
+		return fmt.Errorf(`%w: %v`, ErrUnknownSource, r.Source[0])
 	}
 	r.source = sfn()
 	return r.source.Initialize(r)
@@ -59,11 +59,11 @@ func (r *Rule) initializeSource() error {
 
 func (r *Rule) initializeRegexp() error {
 	if r.Regexp == nil {
-		return errors.New("missing regexp")
+		return ErrMissingRegexp
 	}
 
 	if len(r.Regexp) == 0 {
-		return errors.New("empty regexp")
+		return ErrEmptyRegexp
 	}
 
 	r.regexp = make([]*regexp.Regexp, 0, len(r.Regexp))
@@ -98,15 +98,15 @@ func (r *Rule) initializeRegexp() error {
 
 func (r *Rule) initializeAction() error {
 	if r.Action == nil {
-		return errors.New("missing action")
+		return ErrMissingAction
 	}
 
 	if len(r.Action) == 0 {
-		return errors.New("empty action")
+		return ErrEmptyAction
 	}
 	afn, ok := actions[r.Action[0]]
 	if !ok {
-		return errors.New("unknown action")
+		return fmt.Errorf(`%w: %v`, ErrUnknownAction, r.Action[0])
 	}
 	r.action = afn()
 	return r.action.Initialize(r)
@@ -118,15 +118,15 @@ func (r *Rule) initializeAggregate() error {
 	}
 
 	if len(r.Aggregate) < 1 {
-		return errors.New("missing interval parameter")
+		return ErrMissingIntervalParameter
 	}
 	i, err := time.ParseDuration(r.Aggregate[0])
 	if err != nil {
-		return fmt.Errorf("failed to parse interval parameter: %s", err)
+		return fmt.Errorf("%w: %s", ErrInvalidIntervalParameter, err)
 	}
 
 	if len(r.Aggregate) < 2 {
-		return errors.New("missing regexp")
+		return ErrMissingRegexp
 	}
 
 	res := make([]*regexp.Regexp, 0, len(r.Aggregate)-1)
@@ -157,22 +157,22 @@ func (r *Rule) initializeOccurrences() error {
 	}
 
 	if len(r.Occurrences) < 1 {
-		return errors.New("missing count parameter")
+		return ErrMissingCountParameter
 	}
 	c, err := strconv.Atoi(r.Occurrences[0])
 	if err != nil {
-		return fmt.Errorf("failed to parse count parameter: %s", err)
+		return fmt.Errorf("%w: %s", ErrInvalidCountParameter, err)
 	}
 	if c < 2 {
-		return errors.New("invalid count parameter: must be > 1")
+		return fmt.Errorf("%w: must be > 1", ErrInvalidCountParameter)
 	}
 
 	if len(r.Occurrences) < 2 {
-		return errors.New("missing interval parameter")
+		return ErrMissingIntervalParameter
 	}
 	i, err := time.ParseDuration(r.Occurrences[1])
 	if err != nil {
-		return fmt.Errorf("failed to parse interval parameter: %s", err)
+		return fmt.Errorf("%w: %s", ErrInvalidIntervalParameter, err)
 	}
 
 	r.occurrences = newOccurrences(i, c)
