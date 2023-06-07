@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+var (
+	DefaultChainName  = "gerberos"
+	DefaultTable4Name = "gerberos4"
+	DefaultTable6Name = "gerberos6"
+)
+
 type Backend interface {
 	Initialize() error
 	Ban(ip string, ipv6 bool, d time.Duration) error
@@ -147,9 +153,9 @@ func (b *ipsetBackend) restoreIpsets() error {
 }
 
 func (b *ipsetBackend) Initialize() error {
-	b.chainName = "gerberos"
-	b.ipset4Name = "gerberos4"
-	b.ipset6Name = "gerberos6"
+	b.chainName = DefaultChainName
+	b.ipset4Name = DefaultTable4Name
+	b.ipset6Name = DefaultTable6Name
 
 	// Check privileges
 	if s, _, err := b.runner.Executor.Execute("ipset", "list"); err != nil {
@@ -302,8 +308,8 @@ func (b *nftBackend) restoreSets() error {
 }
 
 func (b *nftBackend) Initialize() error {
-	b.table4Name = "gerberos4"
-	b.table6Name = "gerberos6"
+	b.table4Name = DefaultTable4Name
+	b.table6Name = DefaultTable6Name
 	b.set4Name = "set4"
 	b.set6Name = "set6"
 
