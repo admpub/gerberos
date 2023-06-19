@@ -75,14 +75,14 @@ func TestRunnerBackendInitializeFaulty(t *testing.T) {
 	fi("nft", "", 1, errFault, "nft", "list", "ruleset")
 	fi("nft", "", 1, errFault, "nft", "add", "table", "ip", t4)
 	fi("nft", "", 1, errFault, "nft", "add", "set", "ip", t4, s4, "{ type ipv4_addr; flags timeout; }")
-	fi("nft", "", 1, errFault, "nft", "add", "chain", "ip", t4, "input", "{ type filter hook input priority 0; policy accept; }")
-	fi("nft", "", 1, errFault, "nft", "flush", "chain", "ip", t4, "input")
-	fi("nft", "", 1, errFault, "nft", "add", "rule", "ip", t4, "input", "ip", "saddr", "@"+s4, "reject")
+	fi("nft", "", 1, errFault, "nft", "add", "chain", "ip", t4, "INPUT", "{ type filter hook input priority 0; policy accept; }")
+	fi("nft", "", 1, errFault, "nft", "flush", "chain", "ip", t4, "INPUT")
+	fi("nft", "", 1, errFault, "nft", "add", "rule", "ip", t4, "INPUT", "ip", "saddr", "@"+s4, "reject")
 	fi("nft", "", 1, errFault, "nft", "add", "table", "ip6", t6)
 	fi("nft", "", 1, errFault, "nft", "add", "set", "ip6", t6, s6, "{ type ipv6_addr; flags timeout; }")
-	fi("nft", "", 1, errFault, "nft", "add", "chain", "ip6", t6, "input", "{ type filter hook input priority 0; policy accept; }")
-	fi("nft", "", 1, errFault, "nft", "flush", "chain", "ip6", t6, "input")
-	fi("nft", "", 1, errFault, "nft", "add", "rule", "ip6", t6, "input", "ip6", "saddr", "@"+s6, "reject")
+	fi("nft", "", 1, errFault, "nft", "add", "chain", "ip6", t6, "INPUT", "{ type filter hook input priority 0; policy accept; }")
+	fi("nft", "", 1, errFault, "nft", "flush", "chain", "ip6", t6, "INPUT")
+	fi("nft", "", 1, errFault, "nft", "add", "rule", "ip6", t6, "INPUT", "ip6", "saddr", "@"+s6, "reject")
 }
 
 func TestRunnerBackendFinalizeFaulty(t *testing.T) {
