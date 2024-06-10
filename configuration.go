@@ -13,6 +13,7 @@ type Configuration struct {
 	Verbose      bool
 	Backend      string
 	SaveFilePath string
+	DisallowInit bool
 	Rules        map[string]*Rule
 }
 

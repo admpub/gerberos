@@ -177,6 +177,10 @@ func (b *ipsetBackend) Initialize() error {
 		return fmt.Errorf("ip6tables: insufficient privileges: %s", s)
 	}
 
+	if b.runner.Configuration.DisallowInit {
+		return nil
+	}
+
 	// Initialize ipsets and ip(6)tables entries
 	if err := b.deleteIpsetsAndIptablesEntries(); err != nil {
 		return fmt.Errorf("failed to delete ipsets and iptables entries: %w", err)
@@ -321,11 +325,15 @@ func (b *nftBackend) Initialize() error {
 		return fmt.Errorf("nft: insufficient privileges: %s", s)
 	}
 
+	if b.runner.Configuration.DisallowInit {
+		return nil
+	}
+
 	if err := b.createTables(); err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
 
-	if b.runner.Configuration.SaveFilePath != "" {
+	if len(b.runner.Configuration.SaveFilePath) > 0 {
 		if err := b.restoreSets(); err != nil {
 			log.Printf(`failed to restore sets from "%s": %s`, b.runner.Configuration.SaveFilePath, err)
 		} else {
