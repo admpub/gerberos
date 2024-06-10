@@ -181,7 +181,7 @@ func (b *ipsetBackend) Initialize() error {
 	if err := b.deleteIpsetsAndIptablesEntries(); err != nil {
 		return fmt.Errorf("failed to delete ipsets and iptables entries: %w", err)
 	}
-	if b.runner.Configuration.SaveFilePath != "" {
+	if len(b.runner.Configuration.SaveFilePath) > 0 {
 		if err := b.restoreIpsets(); err != nil {
 			if err := b.createIpsets(); err != nil {
 				return fmt.Errorf("failed to create ipsets: %w", err)
@@ -207,8 +207,8 @@ func (b *ipsetBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 	if ipv6 {
 		s = b.ipset6Name
 	}
-	ds := int64(d.Seconds())
 	if _, _, err := b.runner.Executor.Execute("ipset", "test", s, ip); err != nil {
+		ds := int64(d.Seconds())
 		if _, _, err := b.runner.Executor.Execute("ipset", "add", s, ip, "timeout", fmt.Sprint(ds)); err != nil {
 			return err
 		}
@@ -217,7 +217,7 @@ func (b *ipsetBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 }
 
 func (b *ipsetBackend) Finalize() error {
-	if b.runner.Configuration.SaveFilePath != "" {
+	if len(b.runner.Configuration.SaveFilePath) > 0 {
 		if err := b.saveIpsets(); err != nil {
 			return fmt.Errorf(`failed to save ipsets to "%s": %w`, b.runner.Configuration.SaveFilePath, err)
 		}
@@ -359,7 +359,7 @@ func (b *nftBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 }
 
 func (b *nftBackend) Finalize() error {
-	if b.runner.Configuration.SaveFilePath != "" {
+	if len(b.runner.Configuration.SaveFilePath) > 0 {
 		if err := b.saveSets(); err != nil {
 			return fmt.Errorf(`failed to save sets to "%s": %w`, b.runner.Configuration.SaveFilePath, err)
 		}
