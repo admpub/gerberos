@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/admpub/regexp2"
 )
 
 const (
@@ -35,7 +37,7 @@ type Rule struct {
 	runner      *Runner
 	name        string
 	source      Source
-	regexp      []*regexp.Regexp
+	regexp      []*regexp2.Regexp
 	action      Action
 	aggregate   *aggregate
 	occurrences *occurrences
@@ -66,7 +68,7 @@ func (r *Rule) initializeRegexp() error {
 		return ErrEmptyRegexp
 	}
 
-	r.regexp = make([]*regexp.Regexp, 0, len(r.Regexp))
+	r.regexp = make([]*regexp2.Regexp, 0, len(r.Regexp))
 	for _, s := range r.Regexp {
 		if strings.Contains(s, "(?P<ip>") {
 			return errors.New(`regexp must not contain a subexpression named "ip" ("(?P<ip>")`)
@@ -86,7 +88,7 @@ func (r *Rule) initializeRegexp() error {
 
 		t := strings.Replace(s, ipMagicText, ipRegexpText, 1)
 		t = strings.Replace(t, idMagicText, idRegexpText, 1)
-		re, err := regexp.Compile(t)
+		re, err := regexp2.Compile(t, regexp2.RE2)
 		if err != nil {
 			return err
 		}
@@ -129,7 +131,7 @@ func (r *Rule) initializeAggregate() error {
 		return ErrMissingRegexp
 	}
 
-	res := make([]*regexp.Regexp, 0, len(r.Aggregate)-1)
+	res := make([]*regexp2.Regexp, 0, len(r.Aggregate)-1)
 	for _, s := range r.Aggregate[1:] {
 		if strings.Contains(s, "(?P<id>") {
 			return errors.New(`regexp must not contain a subexpression named "id" ("(?P<id>")`)
@@ -139,7 +141,7 @@ func (r *Rule) initializeAggregate() error {
 			return fmt.Errorf(`"%s" must appear exactly once in regexp`, idMagicRegexp)
 		}
 
-		re, err := regexp.Compile(strings.Replace(s, idMagicText, idRegexpText, 1))
+		re, err := regexp2.Compile(strings.Replace(s, idMagicText, idRegexpText, 1), regexp2.RE2)
 		if err != nil {
 			return err
 		}

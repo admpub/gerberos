@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"regexp"
 	"strings"
 	"time"
+
+	"github.com/admpub/regexp2"
 )
 
 type Match struct {
@@ -15,23 +16,23 @@ type Match struct {
 	Line   string
 	IP     string
 	IPv6   bool
-	Regexp *regexp.Regexp
+	Regexp *regexp2.Regexp
 }
 
 func (r *Rule) MatchSimple(line string) (*Match, error) {
 	for _, re := range r.regexp {
-		m := re.FindStringSubmatch(line)
-		if len(m) == 0 {
+		mch, err := re.FindStringMatch(line)
+		if err != nil {
+			return nil, err
+		}
+		if mch == nil {
 			continue
 		}
-
-		sm := make(map[string]string)
-		for i, name := range re.SubexpNames() {
-			if i != 0 && name != "" {
-				sm[name] = m[i]
-			}
+		g := mch.GroupByName("ip")
+		if g == nil {
+			continue
 		}
-		h := sm["ip"]
+		h := g.String()
 		h = strings.Trim(h, "[]")
 		ph := net.ParseIP(h)
 		if ph == nil {
@@ -54,18 +55,18 @@ func (r *Rule) MatchAggregate(line string) (*Match, error) {
 	a := r.aggregate
 
 	for _, re := range a.regexp {
-		m := re.FindStringSubmatch(line)
-		if len(m) == 0 {
+		mch, err := re.FindStringMatch(line)
+		if err != nil {
+			return nil, err
+		}
+		if mch == nil {
 			continue
 		}
-
-		sm := make(map[string]string)
-		for i, name := range re.SubexpNames() {
-			if i != 0 && name != "" {
-				sm[name] = m[i]
-			}
+		g := mch.GroupByName("id")
+		if g == nil {
+			continue
 		}
-		id := sm["id"]
+		id := g.String()
 
 		a.registryMutex.Lock()
 		if ip, e := a.registry[id]; e {
@@ -84,25 +85,29 @@ func (r *Rule) MatchAggregate(line string) (*Match, error) {
 	}
 
 	for _, re := range r.regexp {
-		m := re.FindStringSubmatch(line)
-		if len(m) == 0 {
+		mch, err := re.FindStringMatch(line)
+		if err != nil {
+			return nil, err
+		}
+		if mch == nil {
 			continue
 		}
-
-		sm := make(map[string]string)
-		for i, name := range re.SubexpNames() {
-			if i != 0 && name != "" {
-				sm[name] = m[i]
-			}
+		g := mch.GroupByName("ip")
+		if g == nil {
+			continue
 		}
-		h := sm["ip"]
+		h := g.String()
 		h = strings.Trim(h, "[]")
 		pip := net.ParseIP(h)
 		if pip == nil {
 			return nil, fmt.Errorf(`failed to parse matched IP "%s"`, h)
 		}
 
-		id := sm["id"]
+		g = mch.GroupByName("id")
+		if g == nil {
+			return nil, fmt.Errorf(`failed to match ID`)
+		}
+		id := g.String()
 		if id == "" {
 			return nil, fmt.Errorf(`failed to match ID`)
 		}

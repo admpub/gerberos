@@ -1,9 +1,10 @@
 package gerberos
 
 import (
-	"regexp"
 	"testing"
 	"time"
+
+	"github.com/admpub/regexp2"
 )
 
 func TestMatches(t *testing.T) {
@@ -117,7 +118,7 @@ func TestMatchesStringer(t *testing.T) {
 		Line:   "line",
 		IP:     "123.123.123.123",
 		IPv6:   false,
-		Regexp: regexp.MustCompile("regexp"),
+		Regexp: regexp2.MustCompile("regexp", regexp2.None),
 	}
 
 	ess := `time = 0001-01-01T00:00:00Z, IP = "123.123.123.123", IPv4`
@@ -143,7 +144,7 @@ func TestMatchesStringer(t *testing.T) {
 		Line:   "line",
 		IP:     "1:5ee:bad:c0de",
 		IPv6:   true,
-		Regexp: regexp.MustCompile("regexp"),
+		Regexp: regexp2.MustCompile("regexp", regexp2.None),
 	}
 
 	ese6 := `time = 0001-01-01T00:00:00Z, IP = "1:5ee:bad:c0de", IPv6, line = "line", regexp = "regexp"`
@@ -158,10 +159,10 @@ func TestMatchesAggregateInvalid(t *testing.T) {
 	testNoError(t, err)
 	r := newTestValidRule()
 	testNoError(t, r.initialize(rn))
-	r.regexp = []*regexp.Regexp{regexp.MustCompile("missing IP subexpression")}
+	r.regexp = []*regexp2.Regexp{regexp2.MustCompile("missing IP subexpression", regexp2.RE2)}
 	_, err = r.MatchAggregate("missing IP subexpression")
 	testError(t, err)
-	r.regexp = []*regexp.Regexp{regexp.MustCompile(ipRegexpText)}
+	r.regexp = []*regexp2.Regexp{regexp2.MustCompile(ipRegexpText, regexp2.RE2)}
 	_, err = r.MatchAggregate("123.123.123.123")
 	testError(t, err)
 }
