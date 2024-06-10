@@ -10,11 +10,12 @@ import (
 )
 
 type Configuration struct {
-	Verbose      bool
-	Backend      string
-	SaveFilePath string
-	DisallowInit bool
-	Rules        map[string]*Rule
+	Verbose       bool
+	Backend       string
+	SaveFilePath  string
+	DisallowInit  bool
+	DisallowClear bool
+	Rules         map[string]*Rule
 }
 
 func (c *Configuration) ReadFile(path string) error {

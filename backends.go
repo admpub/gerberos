@@ -51,6 +51,9 @@ type ipsetBackend struct {
 }
 
 func (b *ipsetBackend) deleteIpsetsAndIptablesEntries() error {
+	if b.runner.Configuration.DisallowClear {
+		return nil
+	}
 	if s, ec, _ := b.runner.Executor.Execute("iptables", "-D", b.chainName, "-j", "DROP", "-m", "set", "--match-set", b.ipset4Name, "src"); ec > 2 {
 		return fmt.Errorf(`failed to delete iptables entry for set "%s": %s`, b.ipset4Name, s)
 	}
@@ -276,6 +279,9 @@ func (b *nftBackend) createTables() error {
 }
 
 func (b *nftBackend) deleteTables() error {
+	if b.runner.Configuration.DisallowClear {
+		return nil
+	}
 	if s, _, err := b.runner.Executor.Execute("nft", "delete", "table", "ip", b.table4Name); err != nil {
 		return fmt.Errorf(`failed to delete table "%s": %s`, b.table4Name, s)
 	}
