@@ -51,9 +51,6 @@ type ipsetBackend struct {
 }
 
 func (b *ipsetBackend) deleteIpsetsAndIptablesEntries() error {
-	if b.runner.Configuration.DisallowClear {
-		return nil
-	}
 	if s, ec, _ := b.runner.Executor.Execute("iptables", "-D", b.chainName, "-j", "DROP", "-m", "set", "--match-set", b.ipset4Name, "src"); ec > 2 {
 		return fmt.Errorf(`failed to delete iptables entry for set "%s": %s`, b.ipset4Name, s)
 	}
@@ -188,6 +185,7 @@ func (b *ipsetBackend) Initialize() error {
 	if err := b.deleteIpsetsAndIptablesEntries(); err != nil {
 		return fmt.Errorf("failed to delete ipsets and iptables entries: %w", err)
 	}
+
 	if len(b.runner.Configuration.SaveFilePath) > 0 {
 		if err := b.restoreIpsets(); err != nil {
 			if err := b.createIpsets(); err != nil {
@@ -229,9 +227,15 @@ func (b *ipsetBackend) Finalize() error {
 			return fmt.Errorf(`failed to save ipsets to "%s": %w`, b.runner.Configuration.SaveFilePath, err)
 		}
 	}
+
+	if b.runner.Configuration.DisallowClear {
+		return nil
+	}
+
 	if err := b.deleteIpsetsAndIptablesEntries(); err != nil {
 		return fmt.Errorf("failed to delete ipsets and ip(6)tables entries: %w", err)
 	}
+
 	return nil
 }
 
@@ -279,9 +283,6 @@ func (b *nftBackend) createTables() error {
 }
 
 func (b *nftBackend) deleteTables() error {
-	if b.runner.Configuration.DisallowClear {
-		return nil
-	}
 	if s, _, err := b.runner.Executor.Execute("nft", "delete", "table", "ip", b.table4Name); err != nil {
 		return fmt.Errorf(`failed to delete table "%s": %s`, b.table4Name, s)
 	}
@@ -377,6 +378,10 @@ func (b *nftBackend) Finalize() error {
 		if err := b.saveSets(); err != nil {
 			return fmt.Errorf(`failed to save sets to "%s": %w`, b.runner.Configuration.SaveFilePath, err)
 		}
+	}
+
+	if b.runner.Configuration.DisallowClear {
+		return nil
 	}
 
 	if err := b.deleteTables(); err != nil {
