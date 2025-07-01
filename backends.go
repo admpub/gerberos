@@ -19,6 +19,12 @@ type Backend interface {
 	Initialize() error
 	Ban(ip string, ipv6 bool, d time.Duration) error
 	Finalize() error
+
+	// tool
+	CreateTables() error
+	DeleteTables() error
+	SaveToFile() error
+	RestoreFromFile() error
 }
 
 var backends = map[string]func(*Runner) Backend{
@@ -50,7 +56,19 @@ type ipsetBackend struct {
 	ipset6Name string
 }
 
-func (b *ipsetBackend) deleteIpsetsAndIptablesEntries() error {
+func (b *ipsetBackend) CreateTables() error {
+	err := b.createIpsets()
+	if err != nil {
+		return fmt.Errorf("failed to create ipsets: %w", err)
+	}
+	err = b.createIptablesEntries()
+	if err != nil {
+		return fmt.Errorf("failed to create ip(6)tables entries: %w", err)
+	}
+	return err
+}
+
+func (b *ipsetBackend) DeleteTables() error {
 	if s, ec, _ := b.runner.Executor.Execute("iptables", "-D", b.chainName, "-j", "DROP", "-m", "set", "--match-set", b.ipset4Name, "src"); ec > 2 {
 		return fmt.Errorf(`failed to delete iptables entry for set "%s": %s`, b.ipset4Name, s)
 	}
@@ -117,7 +135,7 @@ func (b *ipsetBackend) createIptablesEntries() error {
 	return nil
 }
 
-func (b *ipsetBackend) saveIpsets() error {
+func (b *ipsetBackend) SaveToFile() error {
 	f, err := os.Create(b.runner.Configuration.SaveFilePath)
 	if err != nil {
 		return err
@@ -132,7 +150,7 @@ func (b *ipsetBackend) saveIpsets() error {
 	return f.Sync()
 }
 
-func (b *ipsetBackend) restoreIpsets() error {
+func (b *ipsetBackend) RestoreFromFile() error {
 	f, err := os.Open(b.runner.Configuration.SaveFilePath)
 	if err != nil {
 		return err
@@ -182,12 +200,12 @@ func (b *ipsetBackend) Initialize() error {
 	}
 
 	// Initialize ipsets and ip(6)tables entries
-	if err := b.deleteIpsetsAndIptablesEntries(); err != nil {
+	if err := b.DeleteTables(); err != nil {
 		return fmt.Errorf("failed to delete ipsets and iptables entries: %w", err)
 	}
 
 	if len(b.runner.Configuration.SaveFilePath) > 0 {
-		if err := b.restoreIpsets(); err != nil {
+		if err := b.RestoreFromFile(); err != nil {
 			if err := b.createIpsets(); err != nil {
 				return fmt.Errorf("failed to create ipsets: %w", err)
 			}
@@ -223,7 +241,7 @@ func (b *ipsetBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 
 func (b *ipsetBackend) Finalize() error {
 	if len(b.runner.Configuration.SaveFilePath) > 0 {
-		if err := b.saveIpsets(); err != nil {
+		if err := b.SaveToFile(); err != nil {
 			return fmt.Errorf(`failed to save ipsets to "%s": %w`, b.runner.Configuration.SaveFilePath, err)
 		}
 	}
@@ -232,7 +250,7 @@ func (b *ipsetBackend) Finalize() error {
 		return nil
 	}
 
-	if err := b.deleteIpsetsAndIptablesEntries(); err != nil {
+	if err := b.DeleteTables(); err != nil {
 		return fmt.Errorf("failed to delete ipsets and ip(6)tables entries: %w", err)
 	}
 
@@ -247,7 +265,7 @@ type nftBackend struct {
 	set6Name   string
 }
 
-func (b *nftBackend) createTables() error {
+func (b *nftBackend) CreateTables() error {
 	if s, _, err := b.runner.Executor.Execute("nft", "add", "table", "ip", b.table4Name); err != nil {
 		return fmt.Errorf(`failed to add table "%s": %s`, b.table4Name, s)
 	}
@@ -282,7 +300,7 @@ func (b *nftBackend) createTables() error {
 	return nil
 }
 
-func (b *nftBackend) deleteTables() error {
+func (b *nftBackend) DeleteTables() error {
 	if s, _, err := b.runner.Executor.Execute("nft", "delete", "table", "ip", b.table4Name); err != nil {
 		return fmt.Errorf(`failed to delete table "%s": %s`, b.table4Name, s)
 	}
@@ -293,7 +311,7 @@ func (b *nftBackend) deleteTables() error {
 	return nil
 }
 
-func (b *nftBackend) saveSets() error {
+func (b *nftBackend) SaveToFile() error {
 	f, err := os.Create(b.runner.Configuration.SaveFilePath)
 	if err != nil {
 		return err
@@ -312,7 +330,7 @@ func (b *nftBackend) saveSets() error {
 	return f.Sync()
 }
 
-func (b *nftBackend) restoreSets() error {
+func (b *nftBackend) RestoreFromFile() error {
 	_, _, err := b.runner.Executor.Execute("nft", "-f", b.runner.Configuration.SaveFilePath)
 
 	return err
@@ -336,12 +354,12 @@ func (b *nftBackend) Initialize() error {
 		return nil
 	}
 
-	if err := b.createTables(); err != nil {
+	if err := b.CreateTables(); err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
 
 	if len(b.runner.Configuration.SaveFilePath) > 0 {
-		if err := b.restoreSets(); err != nil {
+		if err := b.RestoreFromFile(); err != nil {
 			log.Printf(`failed to restore sets from "%s": %s`, b.runner.Configuration.SaveFilePath, err)
 		} else {
 			log.Printf(`restored sets from "%s"`, b.runner.Configuration.SaveFilePath)
@@ -375,7 +393,7 @@ func (b *nftBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 
 func (b *nftBackend) Finalize() error {
 	if len(b.runner.Configuration.SaveFilePath) > 0 {
-		if err := b.saveSets(); err != nil {
+		if err := b.SaveToFile(); err != nil {
 			return fmt.Errorf(`failed to save sets to "%s": %w`, b.runner.Configuration.SaveFilePath, err)
 		}
 	}
@@ -384,7 +402,7 @@ func (b *nftBackend) Finalize() error {
 		return nil
 	}
 
-	if err := b.deleteTables(); err != nil {
+	if err := b.DeleteTables(); err != nil {
 		return fmt.Errorf("failed to delete tables: %w", err)
 	}
 
@@ -392,10 +410,14 @@ func (b *nftBackend) Finalize() error {
 }
 
 type testBackend struct {
-	runner        *Runner
-	initializeErr error
-	banErr        error
-	finalizeErr   error
+	runner             *Runner
+	initializeErr      error
+	banErr             error
+	finalizeErr        error
+	createTablesErr    error
+	deleteTablesErr    error
+	saveToFileErr      error
+	restoreFromFileErr error
 }
 
 func (b *testBackend) Initialize() error {
@@ -408,4 +430,20 @@ func (b *testBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 
 func (b *testBackend) Finalize() error {
 	return b.finalizeErr
+}
+
+func (b *testBackend) CreateTables() error {
+	return b.createTablesErr
+}
+
+func (b *testBackend) DeleteTables() error {
+	return b.deleteTablesErr
+}
+
+func (b *testBackend) SaveToFile() error {
+	return b.saveToFileErr
+}
+
+func (b *testBackend) RestoreFromFile() error {
+	return b.restoreFromFileErr
 }
