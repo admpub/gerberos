@@ -18,6 +18,7 @@ var (
 type Backend interface {
 	Initialize() error
 	Ban(ip string, ipv6 bool, d time.Duration) error
+	Unban(ip string, ipv6 bool) error
 	Finalize() error
 
 	// tool
@@ -239,6 +240,17 @@ func (b *ipsetBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 	return nil
 }
 
+func (b *ipsetBackend) Unban(ip string, ipv6 bool) error {
+	s := b.ipset4Name
+	if ipv6 {
+		s = b.ipset6Name
+	}
+	if _, _, err := b.runner.Executor.Execute("ipset", "del", s, ip); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *ipsetBackend) Finalize() error {
 	if len(b.runner.Configuration.SaveFilePath) > 0 {
 		if err := b.SaveToFile(); err != nil {
@@ -385,7 +397,19 @@ func (b *nftBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 			// v0.9.3, this is needed.
 			return nil
 		}
-		return fmt.Errorf(`failed to add element to set "%s": %s`, b.set6Name, s)
+		return fmt.Errorf(`failed to add element to set "%s": %s`, sn, s)
+	}
+
+	return nil
+}
+
+func (b *nftBackend) Unban(ip string, ipv6 bool) error {
+	t, tn, sn := "ip", b.table4Name, b.set4Name
+	if ipv6 {
+		t, tn, sn = "ip6", b.table6Name, b.set6Name
+	}
+	if s, _, err := b.runner.Executor.Execute("nft", "delete", "element", t, tn, sn, fmt.Sprintf("{ %s }", ip)); err != nil {
+		return fmt.Errorf(`failed to delete element from set "%s": %s`, sn, s)
 	}
 
 	return nil
@@ -413,6 +437,7 @@ type testBackend struct {
 	runner             *Runner
 	initializeErr      error
 	banErr             error
+	unbanErr           error
 	finalizeErr        error
 	createTablesErr    error
 	deleteTablesErr    error
@@ -426,6 +451,10 @@ func (b *testBackend) Initialize() error {
 
 func (b *testBackend) Ban(ip string, ipv6 bool, d time.Duration) error {
 	return b.banErr
+}
+
+func (b *testBackend) Unban(ip string, ipv6 bool) error {
+	return b.unbanErr
 }
 
 func (b *testBackend) Finalize() error {
